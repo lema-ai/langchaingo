@@ -29,7 +29,11 @@ type Message struct {
 }
 
 func getProvider(modelID string) string {
-	return strings.Split(modelID, ".")[0]
+	split := strings.Split(modelID, ".")
+	if split[0] == "amazon" && strings.HasPrefix(split[1], "nova") {
+		return "anthropic"
+	}
+	return split[0]
 }
 
 // NewClient creates a new Bedrock client.
