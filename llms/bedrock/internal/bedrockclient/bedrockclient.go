@@ -29,6 +29,7 @@ type Message struct {
 }
 
 func getProvider(modelID string) string {
+	modelID = strings.TrimPrefix(modelID, "us.")
 	return strings.Split(modelID, ".")[0]
 }
 

@@ -30,6 +30,16 @@ func BinaryPart(mime string, data []byte) BinaryContent {
 	}
 }
 
+// BinaryPartWithFilename creates a new BinaryContent from the given MIME type (e.g.
+// "image/png" and binary data) and filename.
+func BinaryPartWithFilename(mime string, data []byte, filename *string) BinaryContent {
+	return BinaryContent{
+		MIMEType: mime,
+		Data:     data,
+		Filename: filename,
+	}
+}
+
 // ImageURLPart creates a new ImageURLContent from the given URL.
 func ImageURLPart(url string) ImageURLContent {
 	return ImageURLContent{
@@ -77,6 +87,7 @@ func (ImageURLContent) isPart() {}
 type BinaryContent struct {
 	MIMEType string
 	Data     []byte
+	Filename *string // this is optional and only used for document inputs
 }
 
 func (bc BinaryContent) String() string {
