@@ -171,6 +171,9 @@ func (bc BinaryContent) MarshalJSON() ([]byte, error) {
 			"data":      base64.StdEncoding.EncodeToString(bc.Data),
 		},
 	}
+	if bc.Filename != nil {
+		m.Binary["filename"] = *bc.Filename
+	}
 	return json.Marshal(m)
 }
 
@@ -197,6 +200,10 @@ func (bc *BinaryContent) UnmarshalJSON(data []byte) error {
 	enc, err := base64.StdEncoding.DecodeString(encodedData)
 	if err != nil {
 		return fmt.Errorf("error decoding base64 data: %w", err)
+	}
+	filename, ok := binary["filename"].(string)
+	if ok {
+		bc.Filename = &filename
 	}
 	bc.MIMEType = mimeType
 	bc.Data = enc
