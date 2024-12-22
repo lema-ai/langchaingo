@@ -1,7 +1,9 @@
 package bedrockclient
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -31,11 +33,6 @@ func (c *Client) CreateCompletion(ctx context.Context,
 	messages []llms.MessageContent,
 	options llms.CallOptions,
 ) (*llms.ContentResponse, error) {
-	m, err := processMessages(messages)
-	if err != nil {
-		return nil, err
-	}
-
 	inferenceConfig := &types.InferenceConfiguration{
 		MaxTokens:     aws.Int32(int32(getMaxTokens(options.MaxTokens, 512))),
 		TopP:          aws.Float32(float32(options.TopP)),
@@ -43,16 +40,30 @@ func (c *Client) CreateCompletion(ctx context.Context,
 		StopSequences: options.StopWords,
 	}
 
-	id := "z8caa853j4a4"
-	version := "DRAFT"
+	systemMessages, otherMessages := []llms.MessageContent{}, []llms.MessageContent{}
+	for _, m := range messages {
+		if m.Role == llms.ChatMessageTypeSystem {
+			systemMessages = append(systemMessages, m)
+		} else {
+			otherMessages = append(otherMessages, m)
+		}
+	}
+
+	systemPrompt, err := processSystemMessages(systemMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := processMessages(otherMessages)
+	if err != nil {
+		return nil, err
+	}
+
 	input := &bedrockruntime.ConverseInput{
 		ModelId:         aws.String(modelID),
 		Messages:        m,
 		InferenceConfig: inferenceConfig,
-		GuardrailConfig: &types.GuardrailConfiguration{
-			GuardrailIdentifier: &id,
-			GuardrailVersion:    &version,
-		},
+		System:          systemPrompt,
 	}
 
 	output, err := c.client.Converse(ctx, input)
@@ -89,6 +100,27 @@ func (c *Client) CreateCompletion(ctx context.Context,
 					"output_tokens": output.Usage.OutputTokens,
 				},
 			},
+		},
+	}, nil
+}
+
+func processSystemMessages(messages []llms.MessageContent) ([]types.SystemContentBlock, error) {
+	if len(messages) == 0 {
+		return nil, nil
+	}
+
+	if len(messages) > 1 {
+		return nil, fmt.Errorf("expected at most one system message, got %d", len(messages))
+	}
+
+	systemMessageContent, ok := messages[0].Parts[0].(llms.TextContent)
+	if !ok {
+		return nil, fmt.Errorf("expected system message to be llms.TextContent, got %T", messages[0].Parts[0])
+	}
+
+	return []types.SystemContentBlock{
+		&types.SystemContentBlockMemberText{
+			Value: systemMessageContent.Text,
 		},
 	}, nil
 }
@@ -139,8 +171,47 @@ func messageToBedrockContent(content llms.ContentPart) (types.ContentBlock, erro
 		}, nil
 	case llms.BinaryContent:
 		return binaryContentToBedrockContent(typedContent)
+	case llms.ImageURLContent:
+		return imageURLContentToBedrockContent(typedContent)
 	}
 	return nil, fmt.Errorf("unsupported content type: %T", content)
+}
+
+func imageURLContentToBedrockContent(content llms.ImageURLContent) (types.ContentBlock, error) {
+	parts := strings.Split(content.URL, ";")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("unsupported image url: %s", content.URL)
+	}
+
+	mimeType, found := strings.CutPrefix(parts[0], "data:")
+	if !found {
+		return nil, fmt.Errorf("unsupported image url: %s", content.URL)
+	}
+
+	imageFormat, err := mimetypeToBedrockImageFormat(mimeType)
+	if err != nil {
+		return nil, err
+	}
+
+	var b bytes.Buffer
+	if strings.HasPrefix(parts[1], "base64,") {
+		data, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(parts[1], "base64,"))
+		if err != nil {
+			return nil, err
+		}
+		b.Write(data)
+	} else {
+		b.WriteString(parts[1])
+	}
+
+	return &types.ContentBlockMemberImage{
+		Value: types.ImageBlock{
+			Format: imageFormat,
+			Source: &types.ImageSourceMemberBytes{
+				Value: b.Bytes(),
+			},
+		},
+	}, nil
 }
 
 func binaryContentToBedrockContent(content llms.BinaryContent) (types.ContentBlock, error) {
