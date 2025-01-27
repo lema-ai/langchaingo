@@ -71,7 +71,6 @@ func TestBooleanParser(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		parser := outputparser.NewBooleanParser()
 
 		t.Run(tc.input, func(t *testing.T) {
