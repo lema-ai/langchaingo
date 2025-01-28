@@ -128,7 +128,7 @@ func WithMaxTokens(maxTokens int) CallOption {
 	}
 }
 
-// WithMaxCompletionTokens specifies the max number of tokens to generate - used in the current openai API
+// WithMaxCompletionTokens specifies the max number of tokens to generate - used in the current openai API.
 func WithMaxCompletionTokens(maxCompletionTokens int) CallOption {
 	return func(o *CallOptions) {
 		o.MaxCompletionTokens = maxCompletionTokens

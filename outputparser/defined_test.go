@@ -114,7 +114,22 @@ func getParseTests() map[string]struct {
 		"The Grand Finale",
 	}
 
-	return map[string]struct {
+	validJSON := fmt.Sprintf(
+		`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`,
+		titles[0], titles[1], titles[2],
+	)
+
+	expectedValidBook := &book{
+		Chapters: []struct {
+			Title string `json:"title" describe:"chapter title"`
+		}{
+			{Title: titles[0]},
+			{Title: titles[1]},
+			{Title: titles[2]},
+		},
+	}
+
+	tests := map[string]struct {
 		input    string
 		expected *book
 		wantErr  bool
@@ -130,81 +145,33 @@ func getParseTests() map[string]struct {
 			expected: nil,
 		},
 		"valid": {
-			input: fmt.Sprintf("```json\n%s\n```", fmt.Sprintf(
-				`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`, titles[0], titles[1], titles[2],
-			)),
-			wantErr: false,
-			expected: &book{
-				Chapters: []struct {
-					Title string `json:"title" describe:"chapter title"`
-				}{
-					{Title: titles[0]},
-					{Title: titles[1]},
-					{Title: titles[2]},
-				},
-			},
+			input:    fmt.Sprintf("```json\n%s\n```", validJSON),
+			wantErr:  false,
+			expected: expectedValidBook,
 		},
 		"valid-without-json-tag": {
-			input: fmt.Sprintf("```\n%s\n```", fmt.Sprintf(
-				`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`, titles[0], titles[1], titles[2],
-			)),
-			wantErr: false,
-			expected: &book{
-				Chapters: []struct {
-					Title string `json:"title" describe:"chapter title"`
-				}{
-					{Title: titles[0]},
-					{Title: titles[1]},
-					{Title: titles[2]},
-				},
-			},
+			input:    fmt.Sprintf("```\n%s\n```", validJSON),
+			wantErr:  false,
+			expected: expectedValidBook,
 		},
 		"valid-without-tags": {
-			input: fmt.Sprintf("\n%s\n", fmt.Sprintf(
-				`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`, titles[0], titles[1], titles[2],
-			)),
-			wantErr: false,
-			expected: &book{
-				Chapters: []struct {
-					Title string `json:"title" describe:"chapter title"`
-				}{
-					{Title: titles[0]},
-					{Title: titles[1]},
-					{Title: titles[2]},
-				},
-			},
+			input:    fmt.Sprintf("\n%s\n", validJSON),
+			wantErr:  false,
+			expected: expectedValidBook,
 		},
 		"llm-explanation-and-tags": {
-			input: fmt.Sprintf("Sure! Here's the JSON:\n\n```json\n%s\n```\n\nLet me know if you need anything else.", fmt.Sprintf(
-				`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`, titles[0], titles[1], titles[2],
-			)),
-			wantErr: false,
-			expected: &book{
-				Chapters: []struct {
-					Title string `json:"title" describe:"chapter title"`
-				}{
-					{Title: titles[0]},
-					{Title: titles[1]},
-					{Title: titles[2]},
-				},
-			},
+			input:    fmt.Sprintf("Sure! Here's the JSON:\n\n```json\n%s\n```\n\nLet me know if you need anything else.", validJSON),
+			wantErr:  false,
+			expected: expectedValidBook,
 		},
 		"llm-explanation-and-valid": {
-			input: fmt.Sprintf("Sure! Here's the JSON:\n\n%s\n\nLet me know if you need anything else.", fmt.Sprintf(
-				`{"chapters": [{"title": "%s"}, {"title": "%s"}, {"title": "%s"}]}`, titles[0], titles[1], titles[2],
-			)),
-			wantErr: false,
-			expected: &book{
-				Chapters: []struct {
-					Title string `json:"title" describe:"chapter title"`
-				}{
-					{Title: titles[0]},
-					{Title: titles[1]},
-					{Title: titles[2]},
-				},
-			},
+			input:    fmt.Sprintf("Sure! Here's the JSON:\n\n%s\n\nLet me know if you need anything else.", validJSON),
+			wantErr:  false,
+			expected: expectedValidBook,
 		},
 	}
+
+	return tests
 }
 
 func TestDefinedParse(t *testing.T) {
